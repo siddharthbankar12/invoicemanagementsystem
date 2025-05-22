@@ -1,19 +1,38 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import axiosInstance from "../axios";
+import { toast } from "react-toastify";
+import { useDispatch } from "react-redux";
+import { useNavigate } from "react-router-dom";
+import { login } from "../store/userSlice";
 
 const LoginPage = () => {
-  const [formData, setFormData] = useState({ email: "", password: "" });
+  const route = useNavigate();
+  const dispatch = useDispatch();
+  const [formData, setFormData] = useState({
+    email: "superAdmin@me.com",
+    password: "a",
+  });
+  const [userData, setUserData] = useState(null);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await axiosInstance.post("/auth/login", formData);
-      console.log("Login Success:", res.data);
+      const response = await axiosInstance.post("/auth/login", formData);
+
+      if (response.data.success) {
+        console.log(response.data);
+        dispatch(login(response.data));
+        toast.success(response.data.message);
+        route("/user-dashboard");
+      } else {
+        toast.error(response.data.message);
+      }
     } catch (error) {
-      console.error("Login Error:", error.response?.data || error.message);
+      toast.error(error.response?.data?.message);
     }
   };
 

@@ -1,15 +1,19 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import axiosInstance from "../axios";
+import { toast } from "react-toastify";
+import { useSelector } from "react-redux";
 
 const UserDashboard = () => {
+  const userData = useSelector((state) => state.user.user);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     role: "",
     password: "",
   });
-  const [message, setMessage] = useState(null);
-  const [messageType, setMessageType] = useState("success");
+  const [users, setUsers] = useState([]);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedRole, setSelectedRole] = useState("");
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -21,12 +25,6 @@ const UserDashboard = () => {
 
     const { name, email, role, password } = formData;
 
-    if (!name || !email || !role || !password) {
-      setMessageType("error");
-      setMessage("All fields are required.");
-      return;
-    }
-
     try {
       const response = await axiosInstance.post("/auth/register", {
         name,
@@ -36,40 +34,79 @@ const UserDashboard = () => {
       });
 
       if (response.data.success) {
-        setMessageType("success");
-        setMessage(response.data.message);
+        toast.success(response.data.message);
         setFormData({ name: "", email: "", role: "", password: "" });
       } else {
-        setMessageType("error");
-        setMessage(response.data.message);
+        toast.error(response.data.message);
       }
     } catch (error) {
-      setMessageType("error");
-      setMessage("Something went wrong.");
+      toast.error(
+        error?.response?.data?.message || "Unexpected error occurred."
+      );
       console.error(error);
     }
   };
+
+  const filteredUsers = users.filter((user) => {
+    const matchesSearch =
+      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email.toLowerCase().includes(searchQuery.toLowerCase());
+
+    const matchesRole =
+      selectedRole === "" ||
+      user.role.toLowerCase() === selectedRole.toLowerCase();
+
+    return matchesSearch && matchesRole;
+  });
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      if (userData && userData?.userId) {
+        try {
+          const response = await axiosInstance.post("/user/get-all-users", {
+            userId: userData?.userId,
+          });
+
+          if (response.data.success) {
+            setUsers(response.data.usersData);
+          } else {
+            toast.error(response.data.message);
+          }
+        } catch (error) {
+          console.error(error);
+          toast.error("Failed to fetch users");
+        }
+      }
+    };
+
+    fetchUsers();
+  }, [userData]);
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       <h1 className="text-2xl font-bold mb-6">User Dashboard</h1>
 
-      {/* Filter Section */}
       <div className="flex flex-wrap gap-4 mb-6">
         <input
           type="text"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
           placeholder="Search by Email or Name"
           className="border p-2 rounded w-full sm:w-64"
         />
-        <select className="border p-2 rounded w-full sm:w-48">
-          <option>Filter by Role</option>
-          <option>ADMIN</option>
-          <option>UNIT MANAGER</option>
-          <option>USER</option>
+
+        <select
+          value={selectedRole}
+          onChange={(e) => setSelectedRole(e.target.value)}
+          className="border p-2 rounded w-full sm:w-48"
+        >
+          <option value="">Filter by Role</option>
+          <option value="ADMIN">ADMIN</option>
+          <option value="UNIT MANAGER">UNIT MANAGER</option>
+          <option value="USER">USER</option>
         </select>
       </div>
 
-      {/* Static Table (replace with dynamic data later) */}
       <table className="w-full bg-white shadow-md rounded-lg overflow-hidden">
         <thead className="bg-blue-100 text-left">
           <tr>
@@ -81,16 +118,12 @@ const UserDashboard = () => {
           </tr>
         </thead>
         <tbody>
-          {[1, 2, 3].map((id) => (
-            <tr key={id} className="border-t">
-              <td className="p-3">
-                {id === 1 ? "A1" : id === 2 ? "UM1" : "U1"}
-              </td>
-              <td className="p-3">User {id}</td>
-              <td className="p-3">user{id}@example.com</td>
-              <td className="p-3">
-                {id === 1 ? "ADMIN" : id === 2 ? "UNIT MANAGER" : "USER"}
-              </td>
+          {filteredUsers.map((user) => (
+            <tr key={user._id} className="border-t">
+              <td className="p-3">{user._id}</td>
+              <td className="p-3">{user.name}</td>
+              <td className="p-3">{user.email}</td>
+              <td className="p-3">{user.role}</td>
               <td className="p-3 space-x-2">
                 <button className="bg-yellow-400 px-3 py-1 rounded">
                   Edit
@@ -104,21 +137,8 @@ const UserDashboard = () => {
         </tbody>
       </table>
 
-      {/* Create User Form */}
       <div className="mt-10 max-w-xl">
         <h2 className="text-xl font-semibold mb-4">Create New User</h2>
-
-        {message && (
-          <div
-            className={`mb-4 px-4 py-2 rounded ${
-              messageType === "success"
-                ? "bg-green-100 text-green-700"
-                : "bg-red-100 text-red-700"
-            }`}
-          >
-            {message}
-          </div>
-        )}
 
         <form onSubmit={handleCreateUser} className="space-y-4">
           <input

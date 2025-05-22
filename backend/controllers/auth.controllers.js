@@ -2,7 +2,6 @@ import User from "../models/user.schema.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
 
-// Register Controller
 export const Register = async (req, res) => {
   try {
     const { name, email, role, password } = req.body;
@@ -14,7 +13,7 @@ export const Register = async (req, res) => {
     }
 
     const existingUser = await User.findOne({
-      email: email.trim().toLowerCase(),
+      email: email,
     });
 
     if (existingUser) {
@@ -26,8 +25,8 @@ export const Register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const newUser = new User({
-      name: name.trim(),
-      email: email.trim().toLowerCase(),
+      name: name,
+      email: email,
       role,
       password: hashedPassword,
     });
@@ -43,7 +42,6 @@ export const Register = async (req, res) => {
   }
 };
 
-// Login Controller
 export const Login = async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -54,7 +52,7 @@ export const Login = async (req, res) => {
         .json({ success: false, message: "Email and password are required." });
     }
 
-    const user = await User.findOne({ email: email.trim().toLowerCase() });
+    const user = await User.findOne({ email: email });
 
     if (!user) {
       return res
@@ -91,5 +89,38 @@ export const Login = async (req, res) => {
   } catch (error) {
     console.error("Login Error:", error);
     return res.status(500).json({ success: false, message: "Server error." });
+  }
+};
+
+export const getCurrentUser = async (req, res) => {
+  try {
+    const { token } = req.body;
+    if (!token) {
+      return res.json({ success: false });
+    }
+
+    const tokenData = jwt.verify(token, process.env.SECREATKEY);
+    if (!tokenData) {
+      return res.json({ success: false });
+    }
+
+    const isUserExists = await User.findById(tokenData.userId);
+    if (!isUserExists) {
+      return res.json({ success: false });
+    }
+
+    return res.json({
+      success: true,
+      userData: {
+        user: {
+          userId: isUserExists._id,
+          name: isUserExists.name,
+          role: isUserExists.role,
+        },
+      },
+    });
+  } catch (error) {
+    console.log(error, "error in get-current-user api call ..");
+    return res.json({ success: false, message: error });
   }
 };
