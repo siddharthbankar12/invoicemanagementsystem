@@ -27,7 +27,7 @@ const LoginPage = () => {
         console.log(response.data);
         dispatch(login(response.data));
         toast.success(response.data.message);
-        route("/invoice-dashboard");
+        route("/user-dashboard");
       } else {
         toast.error(response.data.message);
       }
