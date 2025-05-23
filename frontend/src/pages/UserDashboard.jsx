@@ -129,7 +129,6 @@ const UserDashboard = () => {
 
   useEffect(() => {
     if (userData?.role === "USER") {
-      toast.error("Unauthorized Access");
       navigate("/");
     }
   }, [userData]);
