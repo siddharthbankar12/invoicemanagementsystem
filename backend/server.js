@@ -10,7 +10,7 @@ const app = express();
 app.use(
   cors({
     // origin: "http://localhost:3000",
-    origin: "https://invoicemanagementsystem.vercel.app/",
+    origin: "https://invoicemanagementsystem.vercel.app",
     credentials: true,
   })
 );
