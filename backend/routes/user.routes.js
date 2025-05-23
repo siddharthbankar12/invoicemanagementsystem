@@ -1,10 +1,14 @@
 import { Router } from "express";
-import { GetAllUsers } from "../controllers/user.controllers.js";
+import {
+  GetAllUsers,
+  UpdateUserRole,
+  DeleteUser,
+} from "../controllers/user.controllers.js";
 
 const UserRoutes = Router();
 
 UserRoutes.post("/get-all-users", GetAllUsers);
-// UserRoutes.post("/login", Login);
-// UserRoutes.post("/get-current-user", getCurrentUser);
+UserRoutes.post("/update-role", UpdateUserRole);
+UserRoutes.delete("/delete/:userId", DeleteUser);
 
 export default UserRoutes;

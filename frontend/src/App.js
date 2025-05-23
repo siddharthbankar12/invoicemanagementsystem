@@ -47,7 +47,8 @@ const App = () => {
       <Navbar />
       {userData && (
         <h1 className="text-center text-xl font-medium text-gray-700 py-4 border-b border-gray-300">
-          Name - {userData.name} <span className="text-gray-500">/</span> Role -
+          Name - {userData.userName} <span className="text-gray-500">/</span>{" "}
+          Role -
           <span className="text-blue-500 capitalize"> {userData.role}</span>
         </h1>
       )}

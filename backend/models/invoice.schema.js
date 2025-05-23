@@ -2,7 +2,7 @@ import mongoose, { model, Schema } from "mongoose";
 
 const invoiceSchema = new Schema(
   {
-    invoiceNumber: { type: String, required: true, unique: true },
+    invoiceNumber: { type: String, required: true },
     date: { type: Date, required: true },
     amount: { type: Number, required: true },
     financialYear: { type: String, required: true },

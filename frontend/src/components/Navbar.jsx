@@ -1,12 +1,12 @@
 import React, { useState } from "react";
-import { useDispatch } from "react-redux";
+import { useDispatch, useSelector } from "react-redux";
 import { useNavigate } from "react-router-dom";
 import { logout } from "../store/userSlice";
 import { toast } from "react-toastify";
 
 const Navbar = () => {
   const route = useNavigate();
-  const token = localStorage.getItem("token");
+  const userData = useSelector((state) => state.user.user);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const dispatch = useDispatch();
 
@@ -31,7 +31,7 @@ const Navbar = () => {
         </div>
 
         <ul className="hidden md:flex gap-6 items-center">
-          {token && (
+          {userData?.role === "SUPER ADMIN" ? (
             <>
               <li
                 className="cursor-pointer hover:text-blue-400"
@@ -39,6 +39,40 @@ const Navbar = () => {
               >
                 User Dashboard
               </li>
+              <li>
+                <button
+                  onClick={handleLogout}
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-1 rounded"
+                >
+                  Logout
+                </button>
+              </li>
+            </>
+          ) : userData?.role !== "USER" ? (
+            <>
+              <li
+                className="cursor-pointer hover:text-blue-400"
+                onClick={() => handleNavigation("/user-dashboard")}
+              >
+                User Dashboard
+              </li>
+              <li
+                className="cursor-pointer hover:text-blue-400"
+                onClick={() => handleNavigation("/invoice-dashboard")}
+              >
+                Invoice Dashboard
+              </li>
+              <li>
+                <button
+                  onClick={handleLogout}
+                  className="bg-red-600 hover:bg-red-700 text-white px-4 py-1 rounded"
+                >
+                  Logout
+                </button>
+              </li>
+            </>
+          ) : (
+            <>
               <li
                 className="cursor-pointer hover:text-blue-400"
                 onClick={() => handleNavigation("/invoice-dashboard")}
@@ -67,7 +101,7 @@ const Navbar = () => {
 
       {isMenuOpen && (
         <ul className="md:hidden bg-gray-800 px-4 pb-4 space-y-2">
-          {token && (
+          {userData && (
             <>
               <li
                 className="block text-white hover:text-blue-400 cursor-pointer"

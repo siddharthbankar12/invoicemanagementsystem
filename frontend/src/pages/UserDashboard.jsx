@@ -2,11 +2,12 @@ import React, { useEffect, useState } from "react";
 import axiosInstance from "../axios";
 import { toast } from "react-toastify";
 import { useSelector } from "react-redux";
+import { useNavigate } from "react-router-dom";
 
 const UserDashboard = () => {
   const userData = useSelector((state) => state.user.user);
   const [formData, setFormData] = useState({
-    name: "",
+    userName: "",
     email: "",
     role: "",
     password: "",
@@ -14,6 +15,41 @@ const UserDashboard = () => {
   const [users, setUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedRole, setSelectedRole] = useState("");
+  const navigate = useNavigate();
+
+  const fetchUsers = async () => {
+    try {
+      const response = await axiosInstance.post("/user/get-all-users");
+
+      if (response.data.success) {
+        const allUsers = response.data.usersData;
+
+        let visibleUsers = [];
+
+        if (userData?.role === "SUPER ADMIN") {
+          visibleUsers = allUsers.filter(
+            (u) =>
+              u.role === "USER" ||
+              u.role === "UNIT MANAGER" ||
+              u.role === "ADMIN"
+          );
+        } else if (userData?.role === "ADMIN") {
+          visibleUsers = allUsers.filter(
+            (u) => u.role === "UNIT MANAGER" || u.role === "USER"
+          );
+        } else if (userData?.role === "UNIT MANAGER") {
+          visibleUsers = allUsers.filter((u) => u.role === "USER");
+        }
+
+        setUsers(visibleUsers);
+      } else {
+        toast.error(response.data.message);
+      }
+    } catch (error) {
+      console.error(error);
+      toast.error("Failed to fetch users");
+    }
+  };
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -23,34 +59,66 @@ const UserDashboard = () => {
   const handleCreateUser = async (e) => {
     e.preventDefault();
 
-    const { name, email, role, password } = formData;
+    const { userName, email, role, password } = formData;
 
     try {
       const response = await axiosInstance.post("/auth/register", {
-        name,
+        userName,
         email,
         role,
         password,
+        loginUserRole: userData?.role,
       });
 
       if (response.data.success) {
         toast.success(response.data.message);
-        setFormData({ name: "", email: "", role: "", password: "" });
+        setFormData({ userName: "", email: "", role: "", password: "" });
+        fetchUsers();
       } else {
         toast.error(response.data.message);
       }
     } catch (error) {
-      toast.error(
-        error?.response?.data?.message || "Unexpected error occurred."
-      );
+      toast.error(error?.response?.data?.message);
       console.error(error);
+    }
+  };
+
+  const handleRoleChange = async (userId, newRole) => {
+    try {
+      const response = await axiosInstance.post("/user/update-role", {
+        userId,
+        role: newRole,
+      });
+
+      if (response.data.success) {
+        toast.success("Role updated successfully");
+        fetchUsers();
+      } else {
+        toast.error(response.data.message);
+      }
+    } catch (error) {
+      toast.error(error?.response?.data?.message);
+    }
+  };
+
+  const handleDeleteUser = async (userId) => {
+    try {
+      const response = await axiosInstance.delete(`/user/delete/${userId}`);
+      if (response.data.success) {
+        toast.success("User deleted successfully");
+        fetchUsers();
+      } else {
+        toast.error(response.data.message);
+      }
+    } catch (error) {
+      toast.error(error?.response?.data?.message);
     }
   };
 
   const filteredUsers = users.filter((user) => {
     const matchesSearch =
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase());
+      user.userName?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchQuery.toLowerCase());
 
     const matchesRole =
       selectedRole === "" ||
@@ -60,26 +128,16 @@ const UserDashboard = () => {
   });
 
   useEffect(() => {
-    const fetchUsers = async () => {
-      if (userData && userData?.userId) {
-        try {
-          const response = await axiosInstance.post("/user/get-all-users", {
-            userId: userData?.userId,
-          });
+    if (userData?.role === "USER") {
+      toast.error("Unauthorized Access");
+      navigate("/");
+    }
+  }, [userData]);
 
-          if (response.data.success) {
-            setUsers(response.data.usersData);
-          } else {
-            toast.error(response.data.message);
-          }
-        } catch (error) {
-          console.error(error);
-          toast.error("Failed to fetch users");
-        }
-      }
-    };
-
-    fetchUsers();
+  useEffect(() => {
+    if (userData?.role && userData?.role !== "USER") {
+      fetchUsers();
+    }
   }, [userData]);
 
   return (
@@ -120,15 +178,41 @@ const UserDashboard = () => {
         <tbody>
           {filteredUsers.map((user) => (
             <tr key={user._id} className="border-t">
-              <td className="p-3">{user._id}</td>
-              <td className="p-3">{user.name}</td>
+              <td className="p-3">{user.userID}</td>
+              <td className="p-3">{user.userName}</td>
               <td className="p-3">{user.email}</td>
-              <td className="p-3">{user.role}</td>
               <td className="p-3 space-x-2">
-                <button className="bg-yellow-400 px-3 py-1 rounded">
-                  Edit
+                <select
+                  value={user.newRole || user.role}
+                  onChange={(e) => {
+                    const updatedUsers = users.map((u) =>
+                      u._id === user._id ? { ...u, newRole: e.target.value } : u
+                    );
+                    setUsers(updatedUsers);
+                  }}
+                  className="border p-1 rounded"
+                >
+                  <option value="ADMIN">ADMIN</option>
+                  <option value="UNIT MANAGER">UNIT MANAGER</option>
+                  <option value="USER">USER</option>
+                </select>
+                <button
+                  onClick={() =>
+                    handleRoleChange(user._id, user.newRole || user.role)
+                  }
+                  className="bg-blue-500 text-white px-3 py-1 rounded"
+                >
+                  Save
                 </button>
-                <button className="bg-red-500 text-white px-3 py-1 rounded">
+              </td>
+
+              <td className="p-3 space-x-2">
+                <button
+                  className="bg-red-500 text-white px-3 py-1 rounded"
+                  onClick={() => {
+                    handleDeleteUser(user._id);
+                  }}
+                >
                   Delete
                 </button>
               </td>
@@ -142,8 +226,8 @@ const UserDashboard = () => {
 
         <form onSubmit={handleCreateUser} className="space-y-4">
           <input
-            name="name"
-            value={formData.name}
+            name="userName"
+            value={formData.userName}
             onChange={handleInputChange}
             className="w-full p-2 border rounded"
             placeholder="User Name"
@@ -163,9 +247,21 @@ const UserDashboard = () => {
             className="w-full p-2 border rounded"
           >
             <option value="">Select Role</option>
-            <option value="ADMIN">ADMIN</option>
-            <option value="UNIT MANAGER">UNIT MANAGER</option>
-            <option value="USER">USER</option>
+            {userData?.role === "SUPER ADMIN" && (
+              <>
+                <option value="ADMIN">ADMIN</option>
+              </>
+            )}
+            {userData?.role === "ADMIN" && (
+              <>
+                <option value="UNIT MANAGER">UNIT MANAGER</option>
+              </>
+            )}
+            {userData?.role === "UNIT MANAGER" && (
+              <>
+                <option value="USER">USER</option>
+              </>
+            )}
           </select>
           <input
             name="password"

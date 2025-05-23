@@ -1,32 +1,57 @@
 import User from "../models/user.schema.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
+import { getNextSequence } from "../utils/getNextSequence.js";
 
 export const Register = async (req, res) => {
   try {
-    const { name, email, role, password } = req.body;
+    const { userName, email, role, password, loginUserRole } = req.body;
 
-    if (!name || !email || !role || !password) {
+    if (!userName || !email || !role || !password) {
       return res
         .status(400)
         .json({ success: false, message: "All fields are required." });
     }
 
-    const existingUser = await User.findOne({
-      email: email,
-    });
-
+    const existingUser = await User.findOne({ email });
     if (existingUser) {
       return res
         .status(409)
         .json({ success: false, message: "Email already exists." });
     }
 
+    const rolePermissions = {
+      "SUPER ADMIN": ["ADMIN"],
+      ADMIN: ["UNIT MANAGER"],
+      "UNIT MANAGER": ["USER"],
+    };
+
+    const allowedRoles = rolePermissions[loginUserRole] || [];
+
+    if (!allowedRoles.includes(role)) {
+      return res.status(403).json({
+        success: false,
+        message: `You (${loginUserRole}) are not allowed to create a ${role}.`,
+      });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    const rolePrefixMap = {
+      ADMIN: "A",
+      "UNIT MANAGER": "UM",
+      USER: "U",
+    };
+
+    const prefix = rolePrefixMap[role];
+
+    const sequence = await getNextSequence(role);
+    const userID = `${prefix}${sequence}`;
+
     const newUser = new User({
-      name: name,
-      email: email,
+      userID,
+      userName,
+      email,
       role,
       password: hashedPassword,
     });
@@ -75,7 +100,8 @@ export const Login = async (req, res) => {
 
     const userData = {
       id: user._id,
-      name: user.name,
+      userID: user.userID,
+      userName: user.userName,
       email: user.email,
       role: user.role,
     };
@@ -113,9 +139,10 @@ export const getCurrentUser = async (req, res) => {
       success: true,
       userData: {
         user: {
-          userId: isUserExists._id,
-          name: isUserExists.name,
+          id: isUserExists._id,
+          userName: isUserExists.userName,
           role: isUserExists.role,
+          userID: isUserExists.userID,
         },
       },
     });
